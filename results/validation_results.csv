@@ -1,0 +1,13 @@
+Modelo,Caso de Estrés,Promedio Frames,Veredicto Promedio,Intentos
+best_model_16n_0.1.npz,Velocidad Extrema,1962,EXITOSA,10
+best_model_16n_0.1.npz,Gravedad Alterada,100,SOBREAJUSTE,10
+best_model_16n_0.1.npz,Lluvia Obstáculos,4941,EXITOSA,10
+best_model_16n_1.npz,Velocidad Extrema,1729,EXITOSA,10
+best_model_16n_1.npz,Gravedad Alterada,78,SOBREAJUSTE,10
+best_model_16n_1.npz,Lluvia Obstáculos,6957,EXITOSA,10
+best_model_8n_0.1.npz,Velocidad Extrema,2693,EXITOSA,10
+best_model_8n_0.1.npz,Gravedad Alterada,150,SOBREAJUSTE,10
+best_model_8n_0.1.npz,Lluvia Obstáculos,173,SOBREAJUSTE,10
+best_model_8n_1.npz,Velocidad Extrema,2267,EXITOSA,10
+best_model_8n_1.npz,Gravedad Alterada,83,SOBREAJUSTE,10
+best_model_8n_1.npz,Lluvia Obstáculos,8035,EXITOSA,10

@@ -11,8 +11,8 @@ ASSETS_DIR = os.path.join(BASE_DIR, "assets")
 WIDTH = 800
 HEIGHT = 400
 GROUND_Y = 320
-GRAVITY = 0.8
-JUMP_FORCE = -14
+GRAVITY = 1.6
+JUMP_FORCE = -18
 GAME_SPEED_START = 12
 
 class Dino:
@@ -79,7 +79,11 @@ class Dino:
                 self.vel_y = 0
         
         self.rect.y = self.y
-        self.fitness += 1
+        if self.y < GROUND_Y:
+            self.fitness += 0.7  # Penalización por estar en el aire (salta solo si es necesario)
+        else:
+            self.fitness += 1.0
+
 
     def draw(self, screen):
         if self.is_alive:
@@ -121,11 +125,12 @@ class Bird:
     def __init__(self, speed):
         self.type = "bird"
         self.width = 40
-        self.height = 30
+        self.height = 35
         self.x = WIDTH
-        # 3 possible heights: High (jump doesn't reach), Mid (must duck or jump), Low (must jump)
-        # We'll use 2 for now to keep it simpler: High (duck) and Low (jump)
-        self.y = random.choice([GROUND_Y - 20, GROUND_Y + 10]) 
+        # Alturas estratégicas:
+        # GROUND_Y + 10 (330): Debe saltarse.
+        # GROUND_Y - 25 (295): Debe agacharse (saltar o estar parado causa choque).
+        self.y = random.choice([GROUND_Y + 10, GROUND_Y - 25]) 
         
         try:
             raw_bird = pygame.image.load(os.path.join(ASSETS_DIR, "bird.png")).convert_alpha()

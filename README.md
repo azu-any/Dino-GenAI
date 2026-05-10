@@ -31,7 +31,7 @@ $$ A(s) = \{a_1, a_2, a_3\} $$
 ### 3. El Cerebro (Red Neuronal)
 Utilizamos un **Perceptrón Multicapa (MLP)** implementado únicamente con NumPy para mayor eficiencia.
 - **Entrada**: 5 neuronas (Estado $S$).
-- **Capa Oculta**: 8 neuronas con activación **ReLU**.
+- **Capa Oculta**: 16 neuronas con activación **ReLU**.
 - **Salida**: 2 neuronas con activación **Sigmoide** (Probabilidad de Saltar y Probabilidad de Agacharse).
 
 ### 4. Algoritmo Genético
@@ -44,13 +44,13 @@ La optimización de los pesos se realiza mediante evolución:
 
 ## Características Implementadas
 
-- **Entorno Completo**: Incluye cactus de diferentes tamaños y pájaros a distintas alturas.
-- **Dashboard en Vivo**: Gráfica de rendimiento en tiempo real que muestra el Fitness máximo por generación.
+- **Entorno Completo**: Incluye cactus de diferentes tamaños y pájaros a distintas alturas, con físicas realistas y penalización por tiempo en el aire para promover la eficiencia.
+- **Dashboard Analítico**: Gráfica de rendimiento en tiempo real y un **Monitor Neuronal** que muestra los sensores y decisiones del líder.
 - **Persistencia (Model Saving)**: El mejor modelo se guarda automáticamente en `data/best_model.npz`.
 - **Controles de Simulación**:
-  - **F**: Activa el modo **TURBO** (máxima velocidad de entrenamiento).
+  - **F**: Activa el modo **TURBO** (máxima velocidad de entrenamiento, ejecuta múltiples cálculos por frame visual).
   - **Flechas Arriba/Abajo**: Ajustan los FPS manualmente.
-  - **Botón PAUSAR/REANUDAR**: Congela la simulación para inspección visual.
+  - **Botones PAUSAR/REANUDAR y SALIR**: Controles interactivos en la interfaz gráfica.
 
 ---
 
@@ -85,13 +85,13 @@ Dino-GenAI/
    ```
 
 3. **Carga de Modelos**:
-   Al iniciar, el sistema preguntará en la terminal si deseas cargar el modelo previo. 
-   - Presiona `s` para cargar el mejor dinosaurio entrenado y continuar su evolución.
-   - Presiona `n` para empezar desde cero con pesos aleatorios.
+   Al iniciar, el sistema listará todos los modelos `.npz` guardados en la carpeta `data/`. 
+   - Ingresa el número correspondiente a un modelo de la lista para cargarlo y continuar su evolución.
+   - Ingresa `0` para empezar desde cero con pesos aleatorios.
 
 ---
 
 ## Ejemplo de Ejecución
-Al iniciar verás una población de 50 dinosaurios. En las primeras generaciones chocarán rápidamente. Sin embargo, gracias al algoritmo genético, tras 10-15 generaciones observarás dinosaurios capaces de esquivar grupos de cactus y reaccionar correctamente a los pájaros (agachándose o saltando según la altura).
+Al iniciar verás una población de 100 dinosaurios. En las primeras generaciones chocarán rápidamente. Sin embargo, gracias al algoritmo genético, tras 10-15 generaciones observarás dinosaurios capaces de esquivar grupos de cactus y reaccionar correctamente a los pájaros (agachándose o saltando según la altura).
 
 La gráfica de la derecha (**Dashboard**) mostrará cómo el Fitness (puntuación) sube exponencialmente a medida que la población "aprende" las físicas del juego.

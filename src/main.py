@@ -45,12 +45,66 @@ def draw_dashboard(screen, font, history, all_time_best):
             points.append((x, y))
         pygame.draw.lines(screen, (0, 0, 255), False, points, 2)
 
+def draw_neural_monitor(screen, font, dino, obstacles, speed):
+    # Panel de monitoreo de decisiones
+    panel_y = 410
+    pygame.draw.rect(screen, (255, 255, 255), (WIDTH + 20, panel_y, 360, 180))
+    pygame.draw.rect(screen, (0, 0, 0), (WIDTH + 20, panel_y, 360, 180), 2)
+    
+    title = font.render("Monitor de Decisión (Líder)", True, (0, 0, 0))
+    screen.blit(title, (WIDTH + 30, panel_y + 10))
+    
+    if dino and dino.is_alive:
+        from game import get_state
+        state = get_state(dino, obstacles, speed)
+        probs = dino.nn.predict(state) # Probabilidades [salto, agache]
+        
+        # Etiquetas de inputs
+        inputs_labels = ["Distancia", "H_Obs", "Y_Obs", "Velocidad", "Y_Dino"]
+        for i, val in enumerate(state[0]):
+            txt = font.render(f"{inputs_labels[i]}: {val:.2f}", True, (50, 50, 50))
+            screen.blit(txt, (WIDTH + 40, panel_y + 40 + (i * 20)))
+            
+        # Visualización de salida (decisión)
+        jump_col = (0, 200, 0) if probs[0] > 0.5 else (150, 150, 150)
+        duck_col = (0, 0, 200) if probs[1] > 0.5 else (150, 150, 150)
+        
+        j_txt = font.render(f"SALTAR: {probs[0]*100:.1f}%", True, jump_col)
+        d_txt = font.render(f"AGACHAR: {probs[1]*100:.1f}%", True, duck_col)
+        
+        screen.blit(j_txt, (WIDTH + 220, panel_y + 60))
+        screen.blit(d_txt, (WIDTH + 220, panel_y + 100))
+    else:
+        txt = font.render("Esperando nueva generación...", True, (150, 150, 150))
+        screen.blit(txt, (WIDTH + 50, panel_y + 80))
+
 # Initialize Pygame
 pygame.init()
 
 def main():
     print("\n--- DINO GEN AI ---")
-    load_saved = input("¿Deseas intentar cargar el modelo guardado previamente? (s/n): ").strip().lower() == 's'
+    os.makedirs("data", exist_ok=True)
+    
+    load_saved = False
+    load_model_path = None
+    save_model_path = os.path.join("data", "best_model.npz")
+    
+    models = sorted([f for f in os.listdir("data") if f.endswith(".npz")])
+    if models:
+        print("Modelos disponibles:")
+        for i, m in enumerate(models):
+            print(f"[{i+1}] {m}")
+        print("[0] Iniciar nuevo entrenamiento")
+        
+        choice = input(f"Elige una opción (0-{len(models)}): ").strip()
+        if choice.isdigit() and 1 <= int(choice) <= len(models):
+            load_saved = True
+            load_model_path = os.path.join("data", models[int(choice)-1])
+            save_model_path = load_model_path # Sobreescribir el modelo seleccionado o puedes dejarlo fijo
+            print(f"Seleccionado: {load_model_path}")
+    else:
+        print("No se encontraron modelos previos. Iniciando nuevo entrenamiento.")
+        
     print("Iniciando entorno gráfico...\n")
     
     SCREEN_WIDTH = 1200
@@ -61,24 +115,22 @@ def main():
     font = pygame.font.SysFont("Courier New", 18) # Better font for logs
     font_ui = pygame.font.SysFont("Arial", 20)
     
-    POPULATION_SIZE = 50
-    ga = Population(size=POPULATION_SIZE, mutation_rate=0.1)
+    POPULATION_SIZE = 100
+    ga = Population(size=POPULATION_SIZE, mutation_rate=0.05)
     
     training_speed = 60 # FPS base
     is_turbo = False
     is_paused = False
     
-    pause_btn_rect = pygame.Rect(WIDTH + 20, 360, 160, 30)
+    pause_btn_rect = pygame.Rect(WIDTH + 30, 365, 150, 35)
+    quit_btn_rect = pygame.Rect(WIDTH + 210, 365, 150, 35)
     
     all_time_best = 0
     fitness_history = []
     
-    os.makedirs("data", exist_ok=True)
-    model_path = os.path.join("data", "best_model.npz")
-    
     # Cargar modelo si se solicitó y existe
-    if load_saved and os.path.exists(model_path):
-        weights, gen, all_time_best, fitness_history = NeuralNet.load_model(model_path)
+    if load_saved and load_model_path and os.path.exists(load_model_path):
+        weights, gen, all_time_best, fitness_history = NeuralNet.load_model(load_model_path)
         ga.generation = gen
         add_log(f"Modelo cargado: Gen {gen}, Récord: {all_time_best}")
         
@@ -122,77 +174,84 @@ def main():
                 if pause_btn_rect.collidepoint(event.pos):
                     is_paused = not is_paused
                     add_log("Juego Pausado" if is_paused else "Juego Reanudado")
+                if quit_btn_rect.collidepoint(event.pos):
+                    running = False
                 
-        # Update Game Logic
-        if not is_paused:
-            frames += 1
-            
-            # Increase speed slightly over time
-            if frames % 500 == 0:
-                game_speed += 0.2
+        # Update Game Logic (Multiple steps if turbo)
+        logic_steps = 25 if is_turbo and not is_paused else 1
+        
+        for _ in range(logic_steps):
+            if not is_paused:
+                frames += 1
                 
-            # Spawn obstacles
-            if len(obstacles) == 0 or obstacles[-1].x < WIDTH - random.randint(300, 450):
-                if random.random() < 0.05:
-                    # 25% chance of bird after frame 1000 to give them time to learn cactus first
-                    if frames > 1000 and random.random() < 0.25:
-                        obstacles.append(Bird(speed=game_speed))
-                    else:
-                        obstacles.append(Cactus(speed=game_speed))
+                # Increase speed slightly over time
+                if frames % 500 == 0:
+                    game_speed += 0.2
                     
-            # Update obstacles
-            for obs in obstacles:
-                obs.update()
-            obstacles = [obs for obs in obstacles if obs.x + obs.width > 0]
-            
-            # Update Dinos
-            alive_count = 0
-            
-            for dino in dinos:
-                if dino.fitness > gen_max_fitness:
-                    gen_max_fitness = dino.fitness
-                    
-                if dino.is_alive:
-                    alive_count += 1
-                    state = get_state(dino, obstacles, game_speed)
-                    action = dino.nn.predict(state)
-                    
-                    # Action[0]: Jump, Action[1]: Duck
-                    if action[0] > 0.5:
-                        dino.jump()
-                        dino.duck(False)
-                    elif action[1] > 0.5:
-                        dino.duck(True)
-                    else:
-                        dino.duck(False)
+                # Spawn obstacles
+                if len(obstacles) == 0 or obstacles[-1].x < WIDTH - random.randint(300, 450):
+                    if random.random() < 0.05:
+                        # 25% chance of bird after frame 1000 to give them time to learn cactus first
+                        if frames > 1000 and random.random() < 0.25:
+                            obstacles.append(Bird(speed=game_speed))
+                        else:
+                            obstacles.append(Cactus(speed=game_speed))
                         
-                    dino.update()
-                    
-                    # Check collisions
-                    for obs in obstacles:
-                        if dino.rect.colliderect(obs.rect):
-                            dino.is_alive = False
-                            break
-                            
-            # Check if generation died
-            if alive_count == 0:
-                fitness_history.append(gen_max_fitness)
-                if gen_max_fitness > all_time_best:
-                    all_time_best = gen_max_fitness
-                    best_dino = max(dinos, key=lambda d: d.fitness)
-                    NeuralNet.save_model(model_path, best_dino.nn.get_weights(), ga.generation, all_time_best, fitness_history)
-                    add_log(f"¡NUEVO RÉCORD GLOBAL! ({all_time_best}) Guardado.")
-                    
-                add_log(f"Gen {ga.generation} | Max Fitness: {gen_max_fitness}")
-                new_nns = ga.next_generation(dinos)
+                # Update obstacles
+                for obs in obstacles:
+                    obs.update()
+                obstacles = [obs for obs in obstacles if obs.x + obs.width > 0]
                 
-                # Reset environment
-                dinos = [Dino(nn=nn) for nn in new_nns]
-                obstacles.clear()
-                game_speed = GAME_SPEED_START
-                frames = 0
-                gen_max_fitness = 0
-                continue
+                # Update Dinos
+                alive_count = 0
+                
+                for dino in dinos:
+                    if dino.fitness > gen_max_fitness:
+                        gen_max_fitness = dino.fitness
+                        
+                    if dino.is_alive:
+                        alive_count += 1
+                        state = get_state(dino, obstacles, game_speed)
+                        action = dino.nn.predict(state)
+                        
+                        # Action[0]: Jump, Action[1]: Duck
+                        if action[0] > 0.5:
+                            dino.jump()
+                            dino.duck(False)
+                        elif action[1] > 0.5:
+                            dino.duck(True)
+                        else:
+                            dino.duck(False)
+                            
+                        dino.update()
+                        
+                        # Check collisions
+                        for obs in obstacles:
+                            if dino.rect.colliderect(obs.rect):
+                                dino.is_alive = False
+                                break
+                                
+                # Check if generation died
+                if alive_count == 0:
+                    fitness_history.append(gen_max_fitness)
+                    if gen_max_fitness > all_time_best:
+                        all_time_best = gen_max_fitness
+                        best_dino = max(dinos, key=lambda d: d.fitness)
+                        NeuralNet.save_model(save_model_path, best_dino.nn.get_weights(), ga.generation, all_time_best, fitness_history)
+                        add_log(f"¡NUEVO RÉCORD GLOBAL! ({all_time_best}) Guardado.")
+                        
+                    add_log(f"Gen {ga.generation} | Max Fitness: {gen_max_fitness}")
+                    new_nns = ga.next_generation(dinos)
+                    
+                    # Reset environment
+                    dinos = [Dino(nn=nn) for nn in new_nns]
+                    obstacles.clear()
+                    game_speed = GAME_SPEED_START
+                    frames = 0
+                    gen_max_fitness = 0
+                    break # Break logic steps loop to redraw
+            else:
+                break
 
             
         # Drawing
@@ -225,11 +284,29 @@ def main():
         # Dibujar el dashboard
         draw_dashboard(screen, font_ui, fitness_history, all_time_best)
         
+        # Encontrar al líder actual (el que tiene más fitness y sigue vivo)
+        leader = None
+        alive_dinos = [d for d in dinos if d.is_alive]
+        if alive_dinos:
+            leader = max(alive_dinos, key=lambda d: d.fitness)
+            
+        # Dibujar el Monitor Neuronal
+        draw_neural_monitor(screen, font_ui, leader, obstacles, game_speed)
+        
+        # Dibujar botones
+        # No hace falta reasignar .y aquí, usamos los valores definidos al inicio
+
         # Dibujar botón de pausa
         pygame.draw.rect(screen, (200, 50, 50) if is_paused else (50, 200, 50), pause_btn_rect)
         pygame.draw.rect(screen, (0, 0, 0), pause_btn_rect, 2)
-        btn_text = font_ui.render("REANUDAR" if is_paused else "PAUSAR", True, (255, 255, 255))
-        screen.blit(btn_text, (pause_btn_rect.x + 35, pause_btn_rect.y + 4))
+        btn_pause_text = font_ui.render("REANUDAR" if is_paused else "PAUSAR", True, (255, 255, 255))
+        screen.blit(btn_pause_text, (pause_btn_rect.x + (pause_btn_rect.width - btn_pause_text.get_width()) // 2, pause_btn_rect.y + 7))
+        
+        # Dibujar botón de salir
+        pygame.draw.rect(screen, (100, 100, 100), quit_btn_rect)
+        pygame.draw.rect(screen, (0, 0, 0), quit_btn_rect, 2)
+        btn_quit_text = font_ui.render("SALIR", True, (255, 255, 255))
+        screen.blit(btn_quit_text, (quit_btn_rect.x + (quit_btn_rect.width - btn_quit_text.get_width()) // 2, quit_btn_rect.y + 7))
         
         pygame.display.flip()
         

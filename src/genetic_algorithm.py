@@ -3,7 +3,7 @@ import random
 from neural_network import NeuralNet
 
 class Population:
-    def __init__(self, size=50, mutation_rate=0.1):
+    def __init__(self, size=50, mutation_rate=0.05):
         self.size = size
         self.mutation_rate = mutation_rate
         self.generation = 0
@@ -60,5 +60,5 @@ class Population:
         for mat in weights:
             # Add gaussian noise to random genes based on mutation rate
             mask = np.random.rand(*mat.shape) < self.mutation_rate
-            noise = np.random.randn(*mat.shape) * 0.5
+            noise = np.random.randn(*mat.shape) * 0.2
             mat[mask] += noise[mask]
