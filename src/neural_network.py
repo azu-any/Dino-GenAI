@@ -10,9 +10,9 @@ class NeuralNet:
             self.W1, self.b1, self.W2, self.b2 = weights
         else:
             # Initialize with small random values
-            self.W1 = np.random.randn(self.input_size, self.hidden_size) * 0.1
+            self.W1 = np.random.randn(self.input_size, self.hidden_size) * 1.0
             self.b1 = np.zeros((1, self.hidden_size))
-            self.W2 = np.random.randn(self.hidden_size, self.output_size) * 0.1
+            self.W2 = np.random.randn(self.hidden_size, self.output_size) * 1.0
             self.b2 = np.zeros((1, self.output_size))
             
     def relu(self, x):
